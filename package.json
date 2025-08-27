@@ -1,0 +1,50 @@
+{
+  "name": "shootic-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Shootic Photography Booking System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node Server.js",
+    "dev": "nodemon",
+    "dev:start": "node start-dev.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed:admin": "node scripts/seed-admin.js",
+    "seed:data": "node scripts/seed-sample-data.js",
+    "seed": "npm run seed:admin && npm run seed:data",
+    "fix:admin": "node scripts/fix-admin.js",
+    "setup": "node setup-env.js",
+    "test:connection": "node test-connection.js",
+    "test:admin": "node test-admin-endpoints.js",
+    "test:forms": "node test-forms.js",
+    "seed:realistic": "node scripts/seed-realistic-data.js",
+    "seed:additional": "node scripts/seed-additional-data.js"
+  },
+  "keywords": [
+    "photography",
+    "booking",
+    "api",
+    "nodejs",
+    "express",
+    "mongodb"
+  ],
+  "author": "Shootic Team",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.9.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
