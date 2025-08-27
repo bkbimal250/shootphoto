@@ -2,7 +2,7 @@
   "name": "shootic-backend",
   "version": "1.0.0",
   "description": "Backend API for Shootic Photography Booking System",
-  "main": "server.js",
+  "main": "Server.js",
   "scripts": {
     "start": "node Server.js",
     "dev": "nodemon",
