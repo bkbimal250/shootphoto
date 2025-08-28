@@ -24,7 +24,11 @@ app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: ['https://shootphoto.onrender.com', 'https://shootic.com', 'http://localhost:5173', 'http://localhost:5174'],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
 
 // Rate limiting
