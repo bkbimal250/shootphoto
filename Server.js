@@ -39,6 +39,10 @@ app.use(cors({
     'https://admin.shootic.com', 
     'http://localhost:5173', 
     'http://localhost:5174',
+    'http://192.168.29.211:5173',
+    'http://192.168.29.211:5174',
+    'http://127.0.0.1:5174',
+    'http://127.0.0.1:5173',
     // Add your Render frontend URLs here
     'https://shootic.onrender.com',
     'https://shootic-admin.onrender.com'
@@ -61,6 +65,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
 app.use('/api/', limiter);
 
 // Body parsing middleware
