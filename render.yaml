@@ -2,13 +2,12 @@ services:
   - type: web
     name: shootic-backend
     env: node
+    plan: free
     buildCommand: npm install
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
@@ -24,10 +23,16 @@ services:
       - key: EMAIL_PASS
         sync: false
       - key: EMAIL_FROM
-        value: Shootic Photography <noreply@shootic.com>
+        value: Shootic Photography <info.shootic@gmail.com>
       - key: RATE_LIMIT_WINDOW_MS
         value: 900000
       - key: RATE_LIMIT_MAX_REQUESTS
-        value: 100
-      - key: CORS_ORIGIN
-        value: https://shootic-frontend.onrender.com
+        value: 200
+      - key: HELMET_ENABLED
+        value: true
+      - key: COMPRESSION_ENABLED
+        value: true
+      - key: LOG_LEVEL
+        value: info
+    healthCheckPath: /api/health
+    autoDeploy: true

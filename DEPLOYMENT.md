@@ -1,466 +1,186 @@
-# Deployment Guide
+# 🚀 Render Deployment Guide for Shootic Backend
 
-This guide covers deploying the Shootic Backend to various platforms and environments.
+## 📋 Pre-Deployment Checklist
 
-## Table of Contents
+### ✅ Code Ready
+- [x] Server.js optimized for production
+- [x] Environment variables configured
+- [x] CORS settings updated
+- [x] Security middleware enabled
+- [x] Error handling implemented
+- [x] Health check endpoints added
 
-- [Local Development](#local-development)
-- [Production Deployment](#production-deployment)
-- [Docker Deployment](#docker-deployment)
-- [Cloud Platforms](#cloud-platforms)
-- [Environment Configuration](#environment-configuration)
-- [Security Checklist](#security-checklist)
-- [Monitoring & Logging](#monitoring--logging)
-
----
-
-## Local Development
-
-### Prerequisites
-- Node.js (v16 or higher)
-- MongoDB (local or Atlas)
-- npm or yarn
-
-### Setup
-```bash
-# Clone the repository
-git clone https://github.com/bkbimal250/shootphoto.git
-cd shootphoto
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp env.example .env
-# Edit .env with your configuration
-
-# Start development server
-npm run dev
+### ✅ Environment Variables (Set in Render Dashboard)
 ```
-
-### Development Scripts
-```bash
-npm run dev          # Start with nodemon (auto-restart)
-npm start           # Start production server
-npm run test        # Run tests
-npm run seed:admin  # Seed admin user
-npm run seed:realistic  # Seed sample data
-```
-
----
-
-## Production Deployment
-
-### 1. Environment Setup
-
-Create a production `.env` file:
-
-```env
-# Server Configuration
-PORT=5000
 NODE_ENV=production
-
-# MongoDB Configuration (Use Atlas for production)
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/shootic
-
-# JWT Configuration (Use strong secret)
-JWT_SECRET=your-super-strong-jwt-secret-key-here
+MONGODB_URI=mongodb+srv://shootic:6cqA7sx6QgZxpwE7@cluster0.0g9epcq.mongodb.net/Shootic-photo
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRES_IN=24h
-
-# Email Configuration
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=your-production-email@gmail.com
-EMAIL_PASS=your-app-password
-EMAIL_FROM=Shootic Photography <noreply@shootic.com>
-
-# Rate Limiting (Stricter for production)
+EMAIL_USER=info.shootic@gmail.com
+EMAIL_PASS=cfwm duyq yjnf cjuz
+EMAIL_FROM=Shootic Photography <info.shootic@gmail.com>
 RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=50
-
-# CORS Configuration (Your frontend domain)
-CORS_ORIGIN=https://your-frontend-domain.com
+RATE_LIMIT_MAX_REQUESTS=200
+HELMET_ENABLED=true
+COMPRESSION_ENABLED=true
+LOG_LEVEL=info
 ```
 
-### 2. Process Manager (PM2)
+## 🎯 Deployment Steps
 
-Install PM2 globally:
-```bash
-npm install -g pm2
+### 1. **Connect to Render**
+- Go to [render.com](https://render.com)
+- Sign in with your GitHub account
+- Click "New +" → "Web Service"
+
+### 2. **Connect Repository**
+- Connect your GitHub repository
+- Select the `shootic-backend` directory
+- Choose "Node" as the environment
+
+### 3. **Configure Service**
+```
+Name: shootic-backend
+Environment: Node
+Region: Choose closest to your users
+Branch: main (or your default branch)
+Root Directory: shootic-backend (if deploying from monorepo)
+Build Command: npm install
+Start Command: npm start
 ```
 
-Create `ecosystem.config.js`:
+### 4. **Set Environment Variables**
+- Add all environment variables listed above
+- Mark sensitive ones (MONGODB_URI, JWT_SECRET, EMAIL_PASS) as "Secret"
+
+### 5. **Advanced Settings**
+```
+Health Check Path: /api/health
+Auto-Deploy: Enabled
+```
+
+## 🔧 Post-Deployment Configuration
+
+### 1. **Update Frontend URLs**
+After deployment, update your frontend applications to use the new backend URL:
+
+**shootic/.env.local:**
+```
+VITE_API_URL=https://your-backend-name.onrender.com/api
+```
+
+**shootic-admin/.env:**
+```
+VITE_API_URL=https://your-backend-name.onrender.com/api
+```
+
+### 2. **Update CORS Origins**
+Add your frontend URLs to the CORS configuration in `Server.js`:
 ```javascript
-module.exports = {
-  apps: [{
-    name: 'shootic-backend',
-    script: 'Server.js',
-    instances: 'max',
-    exec_mode: 'cluster',
-    env: {
-      NODE_ENV: 'development'
-    },
-    env_production: {
-      NODE_ENV: 'production'
-    },
-    error_file: './logs/err.log',
-    out_file: './logs/out.log',
-    log_file: './logs/combined.log',
-    time: true
-  }]
-};
+origin: [
+  'https://your-frontend-name.onrender.com',
+  'https://your-admin-frontend-name.onrender.com',
+  // ... existing origins
+]
 ```
 
-Start with PM2:
+### 3. **Test Endpoints**
 ```bash
-# Development
-pm2 start ecosystem.config.js
-
-# Production
-pm2 start ecosystem.config.js --env production
-
-# Monitor
-pm2 monit
-
-# View logs
-pm2 logs shootic-backend
-```
-
-### 3. Nginx Configuration
-
-Create `/etc/nginx/sites-available/shootic-backend`:
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-Enable the site:
-```bash
-sudo ln -s /etc/nginx/sites-available/shootic-backend /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
----
-
-## Docker Deployment
-
-### 1. Dockerfile
-
-Create `Dockerfile`:
-```dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
-COPY . .
-
-# Create logs directory
-RUN mkdir -p logs
-
-# Expose port
-EXPOSE 5000
-
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/api/health || exit 1
+curl https://your-backend-name.onrender.com/api/health
 
-# Start the application
-CMD ["npm", "start"]
+# Test admin creation
+curl -X POST https://your-backend-name.onrender.com/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Admin User",
+    "email": "admin@shootic.com",
+    "password": "admin123",
+    "role": "super_admin"
+  }'
 ```
 
-### 2. Docker Compose
+## 🛡️ Security Considerations
 
-Create `docker-compose.yml`:
-```yaml
-version: '3.8'
+### 1. **JWT Secret**
+- Use a strong, random JWT secret in production
+- Generate using: `node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"`
 
-services:
-  backend:
-    build: .
-    ports:
-      - "5000:5000"
-    environment:
-      - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongo:27017/shootic
-    depends_on:
-      - mongo
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+### 2. **MongoDB Security**
+- Ensure MongoDB Atlas network access allows Render IPs
+- Use strong database credentials
 
-  mongo:
-    image: mongo:6
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password
+### 3. **Email Configuration**
+- Use App Passwords for Gmail
+- Enable 2FA on the email account
 
-volumes:
-  mongo_data:
-```
+## 📊 Monitoring
 
-### 3. Build and Run
+### 1. **Render Dashboard**
+- Monitor logs in real-time
+- Check deployment status
+- View performance metrics
 
+### 2. **Health Checks**
+- `/api/health` endpoint for automated monitoring
+- Returns uptime and database status
+
+### 3. **Error Tracking**
+- Production errors are logged but don't expose stack traces
+- Monitor for 500 errors and rate limiting
+
+## 🔄 Continuous Deployment
+
+### 1. **Auto-Deploy**
+- Enabled by default
+- Deploys on every push to main branch
+
+### 2. **Manual Deploy**
+- Use "Manual Deploy" for testing specific commits
+- Rollback to previous versions if needed
+
+## 🚨 Troubleshooting
+
+### Common Issues:
+
+1. **Build Failures**
+   - Check `package.json` has correct start script
+   - Verify all dependencies are in `dependencies` (not `devDependencies`)
+
+2. **Environment Variables**
+   - Ensure all required variables are set
+   - Check for typos in variable names
+
+3. **Database Connection**
+   - Verify MongoDB URI is correct
+   - Check network access in MongoDB Atlas
+
+4. **CORS Errors**
+   - Add frontend URLs to CORS origins
+   - Check for trailing slashes in URLs
+
+### Debug Commands:
 ```bash
-# Build the image
-docker build -t shootic-backend .
+# Check logs
+curl https://your-backend-name.onrender.com/api/health
 
-# Run with docker-compose
-docker-compose up -d
-
-# View logs
-docker-compose logs -f backend
+# Test database connection
+curl -X POST https://your-backend-name.onrender.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@shootic.com","password":"admin123"}'
 ```
 
----
+## 📞 Support
 
-## Cloud Platforms
-
-### 1. Heroku
-
-Create `Procfile`:
-```
-web: npm start
-```
-
-Deploy:
-```bash
-# Install Heroku CLI
-heroku create shootic-backend
-heroku config:set NODE_ENV=production
-heroku config:set MONGODB_URI=your-mongodb-atlas-uri
-heroku config:set JWT_SECRET=your-jwt-secret
-heroku addons:create mongolab:sandbox
-git push heroku main
-```
-
-### 2. Railway
-
-1. Connect your GitHub repository
-2. Set environment variables in Railway dashboard
-3. Deploy automatically on push
-
-### 3. Render
-
-1. Connect your GitHub repository
-2. Set build command: `npm install`
-3. Set start command: `npm start`
-4. Configure environment variables
-
-### 4. DigitalOcean App Platform
-
-1. Connect your GitHub repository
-2. Select Node.js environment
-3. Set build command: `npm install`
-4. Set run command: `npm start`
-5. Configure environment variables
-
----
-
-## Environment Configuration
-
-### Required Environment Variables
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `PORT` | Server port | `5000` |
-| `NODE_ENV` | Environment | `production` |
-| `MONGODB_URI` | MongoDB connection string | `mongodb+srv://...` |
-| `JWT_SECRET` | JWT signing secret | `your-secret-key` |
-| `JWT_EXPIRES_IN` | JWT expiration time | `24h` |
-| `EMAIL_HOST` | SMTP host | `smtp.gmail.com` |
-| `EMAIL_PORT` | SMTP port | `587` |
-| `EMAIL_USER` | SMTP username | `your-email@gmail.com` |
-| `EMAIL_PASS` | SMTP password | `your-app-password` |
-| `EMAIL_FROM` | From email address | `Shootic <noreply@shootic.com>` |
-| `CORS_ORIGIN` | Allowed origins | `https://your-domain.com` |
-
-### Optional Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `RATE_LIMIT_WINDOW_MS` | Rate limit window | `900000` (15 min) |
-| `RATE_LIMIT_MAX_REQUESTS` | Max requests per window | `100` |
-| `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:5173` |
-
----
-
-## Security Checklist
-
-### ✅ Environment Variables
-- [ ] Use strong JWT secrets
-- [ ] Use MongoDB Atlas (not local)
-- [ ] Use app passwords for email
-- [ ] Set NODE_ENV=production
-
-### ✅ CORS Configuration
-- [ ] Restrict CORS to your frontend domain
-- [ ] Remove wildcard origins
-- [ ] Use HTTPS in production
-
-### ✅ Rate Limiting
-- [ ] Enable rate limiting
-- [ ] Set appropriate limits for production
-- [ ] Monitor rate limit violations
-
-### ✅ Input Validation
-- [ ] Validate all input data
-- [ ] Sanitize user inputs
-- [ ] Use express-validator
-
-### ✅ Authentication
-- [ ] Use HTTPS in production
-- [ ] Set secure JWT expiration
-- [ ] Implement proper logout
-
-### ✅ Database Security
-- [ ] Use MongoDB Atlas
-- [ ] Enable network access controls
-- [ ] Use strong database passwords
-
----
-
-## Monitoring & Logging
-
-### 1. Application Logs
-
-The application uses Morgan for HTTP logging. Logs are written to:
-- Console (development)
-- Files (production)
-
-### 2. Error Monitoring
-
-Consider integrating error monitoring services:
-- **Sentry**: `npm install @sentry/node`
-- **LogRocket**: For session replay
-- **New Relic**: For performance monitoring
-
-### 3. Health Checks
-
-The application includes a health check endpoint:
-```
-GET /api/health
-```
-
-### 4. Performance Monitoring
-
-Monitor key metrics:
-- Response times
-- Error rates
-- Database connection status
-- Memory usage
-- CPU usage
-
-### 5. Log Rotation
-
-For production, implement log rotation:
-```bash
-# Install logrotate
-sudo apt-get install logrotate
-
-# Configure log rotation
-sudo nano /etc/logrotate.d/shootic-backend
-```
-
-Example logrotate configuration:
-```
-/path/to/app/logs/*.log {
-    daily
-    missingok
-    rotate 52
-    compress
-    delaycompress
-    notifempty
-    create 644 node node
-    postrotate
-        pm2 reload shootic-backend
-    endscript
-}
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Port already in use**
-   ```bash
-   # Find process using port 5000
-   lsof -i :5000
-   # Kill the process
-   kill -9 <PID>
-   ```
-
-2. **MongoDB connection failed**
-   - Check MongoDB URI
-   - Verify network access
-   - Check credentials
-
-3. **JWT token issues**
-   - Verify JWT_SECRET is set
-   - Check token expiration
-   - Ensure proper token format
-
-4. **Email sending failed**
-   - Verify SMTP credentials
-   - Check app password for Gmail
-   - Test SMTP connection
-
-### Performance Optimization
-
-1. **Database Indexing**
-   ```javascript
-   // Add indexes to models
-   bookingSchema.index({ email: 1 });
-   bookingSchema.index({ date: 1 });
-   bookingSchema.index({ status: 1 });
-   ```
-
-2. **Caching**
-   - Implement Redis for session storage
-   - Cache frequently accessed data
-   - Use CDN for static assets
-
-3. **Compression**
-   - Enable gzip compression
-   - Optimize response payloads
-   - Use pagination for large datasets
-
----
-
-## Support
-
-For deployment issues:
-1. Check the logs: `pm2 logs shootic-backend`
+If you encounter issues:
+1. Check Render logs in the dashboard
 2. Verify environment variables
-3. Test database connectivity
-4. Check network configuration
-5. Review security settings
+3. Test endpoints locally first
+4. Check MongoDB connection
+5. Review CORS configuration
 
-For additional help, create an issue in the repository or contact the development team.
+---
+
+**🎉 Your Shootic Backend is now ready for production deployment on Render!**

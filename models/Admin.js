@@ -7,7 +7,8 @@ const adminSchema = new mongoose.Schema({
     required: [true, 'Email is required'],
     unique: true,
     lowercase: true,
-    trim: true
+    trim: true,
+    index: true
   },
   password: {
     type: String,
@@ -31,6 +32,18 @@ const adminSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  profileImage: {
+    type: String,
+    default: null
+  },
+  phone: {
+    type: String,
+    trim: true
+  },
+  permissions: [{
+    type: String,
+    enum: ['manage_bookings', 'manage_contacts', 'manage_admins', 'view_analytics', 'manage_settings']
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -72,5 +85,14 @@ adminSchema.methods.toPublicJSON = function() {
   delete admin.password;
   return admin;
 };
+
+// Static method to find admin by email
+adminSchema.statics.findByEmail = function(email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
+
+// Index for better query performance
+adminSchema.index({ role: 1 });
+adminSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Admin', adminSchema);

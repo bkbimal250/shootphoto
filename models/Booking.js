@@ -1,95 +1,155 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
-  // Customer Information
-  firstName: {
+  customerName: {
     type: String,
-    required: [true, 'First name is required'],
+    required: [true, 'Customer name is required'],
     trim: true
   },
-  lastName: {
+  customerEmail: {
     type: String,
-    required: [true, 'Last name is required'],
-    trim: true
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
+    required: [true, 'Customer email is required'],
     lowercase: true,
     trim: true
   },
-  phone: {
+  customerPhone: {
     type: String,
-    required: [true, 'Phone number is required'],
+    required: [true, 'Customer phone is required'],
     trim: true
   },
-
-  // Address Information
-  address: {
+  serviceType: {
     type: String,
-    required: [true, 'Address is required'],
-    trim: true
-  },
-  city: {
-    type: String,
-    required: [true, 'City is required'],
-    trim: true
-  },
-  state: {
-    type: String,
-    required: [true, 'State is required'],
-    trim: true
-  },
-  pincode: {
-    type: String,
-    required: [true, 'PIN code is required'],
-    trim: true
-  },
-
-  // Booking Details
-  service: {
-    type: String,
-    required: [true, 'Service is required'],
-    enum: ['Family Portraits', 'Couples & Engagement', 'Kids & Newborns', 'Solo Portraits', 'Product Photography']
+    required: [true, 'Service type is required'],
+    enum: [
+      'wedding',
+      'portrait',
+      'event',
+      'commercial',
+      'family',
+      'engagement',
+      'maternity',
+      'newborn',
+      'graduation',
+      'corporate',
+      'other'
+    ]
   },
   package: {
     type: String,
-    required: [true, 'Package is required'],
-    enum: ['Essential Package', 'Premium Package', 'Deluxe Package']
+    required: [true, 'Package selection is required'],
+    enum: ['basic', 'standard', 'premium', 'custom']
   },
   date: {
     type: Date,
-    required: [true, 'Date is required']
+    required: [true, 'Booking date is required']
   },
   time: {
     type: String,
-    required: [true, 'Time is required']
+    required: [true, 'Booking time is required']
   },
-  addOns: [{
-    type: String
-  }],
-  totalAmount: {
+  duration: {
+    type: Number, // in hours
+    required: [true, 'Duration is required'],
+    min: [1, 'Duration must be at least 1 hour']
+  },
+  location: {
+    address: {
+      type: String,
+      required: [true, 'Location address is required']
+    },
+    city: {
+      type: String,
+      required: [true, 'City is required']
+    },
+    state: {
+      type: String,
+      required: [true, 'State is required']
+    },
+    zipCode: {
+      type: String,
+      required: [true, 'Zip code is required']
+    }
+  },
+  specialRequirements: {
+    type: String,
+    trim: true,
+    maxlength: [1000, 'Special requirements cannot exceed 1000 characters']
+  },
+  numberOfPeople: {
     type: Number,
-    required: [true, 'Total amount is required']
+    min: [1, 'Number of people must be at least 1'],
+    default: 1
   },
-
-  // Status and Notes
   status: {
     type: String,
-    enum: ['pending', 'confirmed', 'completed', 'cancelled'],
+    enum: ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'rescheduled'],
     default: 'pending'
   },
+  price: {
+    amount: {
+      type: Number,
+      required: [true, 'Price amount is required'],
+      min: [0, 'Price cannot be negative']
+    },
+    currency: {
+      type: String,
+      default: 'USD'
+    },
+    discount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Discount cannot be negative']
+    }
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'partial', 'paid', 'refunded'],
+    default: 'pending'
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'card', 'bank_transfer', 'online', 'other'],
+    default: 'online'
+  },
+  photographer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
+  },
   notes: {
+    admin: [{
+      content: String,
+      createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Admin'
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    customer: {
+      type: String,
+      trim: true
+    }
+  },
+  images: [{
+    url: String,
+    caption: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  cancellationReason: {
     type: String,
     trim: true
   },
-
-  // Timestamps
-  createdAt: {
-    type: Date,
-    default: Date.now
+  rescheduledFrom: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Booking'
   },
-  updatedAt: {
+  createdAt: {
     type: Date,
     default: Date.now
   }
@@ -98,38 +158,73 @@ const bookingSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-bookingSchema.index({ email: 1 });
+bookingSchema.index({ customerEmail: 1 });
 bookingSchema.index({ date: 1 });
 bookingSchema.index({ status: 1 });
+bookingSchema.index({ serviceType: 1 });
+bookingSchema.index({ 'location.city': 1 });
 bookingSchema.index({ createdAt: -1 });
 
-// Virtual for full name
-bookingSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.lastName}`;
+// Virtual for total price after discount
+bookingSchema.virtual('totalPrice').get(function() {
+  return this.price.amount - this.price.discount;
 });
 
-// Virtual for formatted date
-bookingSchema.virtual('formattedDate').get(function() {
-  return this.date.toLocaleDateString('en-IN');
-});
-
-// Method to get booking summary
-bookingSchema.methods.getSummary = function() {
-  return {
-    id: this._id,
-    customerName: this.fullName,
-    service: this.service,
-    date: this.formattedDate,
-    time: this.time,
-    amount: this.totalAmount,
-    status: this.status
-  };
+// Method to check if booking is in the past
+bookingSchema.methods.isPast = function() {
+  return new Date(this.date) < new Date();
 };
 
-// Pre-save middleware to update the updatedAt field
-bookingSchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
+// Method to check if booking is today
+bookingSchema.methods.isToday = function() {
+  const today = new Date();
+  const bookingDate = new Date(this.date);
+  return bookingDate.toDateString() === today.toDateString();
+};
+
+// Method to get booking duration in hours and minutes
+bookingSchema.methods.getDurationText = function() {
+  const hours = Math.floor(this.duration);
+  const minutes = Math.round((this.duration - hours) * 60);
+  
+  if (minutes === 0) {
+    return `${hours} hour${hours !== 1 ? 's' : ''}`;
+  }
+  return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+};
+
+// Static method to find bookings by date range
+bookingSchema.statics.findByDateRange = function(startDate, endDate) {
+  return this.find({
+    date: {
+      $gte: startDate,
+      $lte: endDate
+    }
+  }).sort({ date: 1 });
+};
+
+// Static method to find bookings by status
+bookingSchema.statics.findByStatus = function(status) {
+  return this.find({ status }).sort({ date: 1 });
+};
+
+// Static method to get booking statistics
+bookingSchema.statics.getStats = async function() {
+  const stats = await this.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        totalRevenue: { $sum: '$price.amount' }
+      }
+    }
+  ]);
+  
+  return stats;
+};
+
+// Ensure virtual fields are serialized
+bookingSchema.set('toJSON', { virtuals: true });
+bookingSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);
