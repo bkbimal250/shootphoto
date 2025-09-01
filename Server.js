@@ -33,26 +33,58 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-  origin: [
-    'https://shootphoto.onrender.com', 
-    'https://shootic.com', 
-    'https://admin.shootic.com', 
-    'http://localhost:5173', 
-    'http://localhost:5174',
-    'http://192.168.29.211:5173',
-    'http://192.168.29.211:5174',
-    'http://127.0.0.1:5174',
-    'http://127.0.0.1:5173',
-    // Add your Render frontend URLs here
-    'https://shootic.onrender.com',
-    'https://shootic-admin.onrender.com'
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://shootphoto.onrender.com', 
+      'https://shootic.com', 
+      'https://admin.shootic.com', 
+      'https://shootic.onrender.com',
+      'https://shootic-admin.onrender.com'
+    ];
+    
+    // Allow all localhost ports for development
+    if (origin.startsWith('http://localhost:') || 
+        origin.startsWith('http://127.0.0.1:') ||
+        origin.startsWith('http://192.168.') ||
+        origin.startsWith('http://10.0.') ||
+        origin.startsWith('http://172.')) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400 // 24 hours
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
+// Additional CORS headers middleware
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 // Rate limiting - more lenient for production
 const limiter = rateLimit({
